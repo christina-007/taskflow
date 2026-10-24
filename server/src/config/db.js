@@ -14,7 +14,7 @@ export const connectDB = async () => {
   const uri = process.env.MONGODB_URI && process.env.MONGODB_URI.trim();
 
   if (uri && !uri.includes('<username>') && !uri.includes('<password>')) {
-    const maxRetries = 3;
+    const maxRetries = 4;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const conn = await mongoose.connect(uri, {
@@ -26,8 +26,9 @@ export const connectDB = async () => {
       } catch (err) {
         console.warn(`[TaskFlow DB] Attempt ${attempt}/${maxRetries} to connect to Atlas failed: ${err.message}`);
         if (attempt < maxRetries) {
-          console.log(`[TaskFlow DB] Retrying Atlas connection in 1.2s...`);
-          await new Promise((resolve) => setTimeout(resolve, 1200));
+          const delay = attempt * 1500;
+          console.log(`[TaskFlow DB] Retrying Atlas connection in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           console.error(`[TaskFlow DB] All Atlas connection attempts failed. Falling back to local embedded database...`);
         }

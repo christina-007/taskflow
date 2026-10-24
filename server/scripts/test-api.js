@@ -8,10 +8,28 @@ const testApi = async () => {
   const health = await healthRes.json();
   console.log('1. Health check:', health.status === 'ok' ? 'PASSED' : 'FAILED');
 
+  // Register / authenticate a test user
+  const email = `eval_tester_${Date.now()}@example.com`;
+  const authRes = await fetch(`${baseUrl}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Evaluation Tester',
+      email,
+      password: 'password123',
+    }),
+  });
+  const authData = await authRes.json();
+  const token = authData.token;
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+
   // 2. Create task
   const createRes = await fetch(`${baseUrl}/tasks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
     body: JSON.stringify({
       title: 'Design TaskFlow Linear Interface',
       description: 'Implement warm off-white and charcoal aesthetic',
@@ -27,32 +45,35 @@ const testApi = async () => {
   // 3. Validation check
   const invalidRes = await fetch(`${baseUrl}/tasks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
     body: JSON.stringify({ description: 'No title' }),
   });
   console.log('3. Validation check (400 expected):', invalidRes.status === 400 ? 'PASSED' : 'FAILED');
 
   // 4. Get all tasks
-  const getRes = await fetch(`${baseUrl}/tasks`);
+  const getRes = await fetch(`${baseUrl}/tasks`, { headers: authHeaders });
   const list = await getRes.json();
-  console.log('4. Get all tasks:', list.success ? 'PASSED' : 'FAILED', `Count: ${list.count}`);
+  console.log('4. Get all tasks for user:', list.success ? 'PASSED' : 'FAILED', `Count: ${list.count}`);
 
   // 5. Update task
   const updateRes = await fetch(`${baseUrl}/tasks/${taskId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
     body: JSON.stringify({ status: 'Completed' }),
   });
   const updated = await updateRes.json();
   console.log('5. Update task to Completed:', updated.data?.status === 'Completed' ? 'PASSED' : 'FAILED');
 
   // 6. Get stats
-  const statsRes = await fetch(`${baseUrl}/tasks/stats`);
+  const statsRes = await fetch(`${baseUrl}/tasks/stats`, { headers: authHeaders });
   const stats = await statsRes.json();
   console.log('6. Get stats:', stats.success ? 'PASSED' : 'FAILED', stats.data);
 
   // 7. Delete task
-  const delRes = await fetch(`${baseUrl}/tasks/${taskId}`, { method: 'DELETE' });
+  const delRes = await fetch(`${baseUrl}/tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: authHeaders,
+  });
   const deleted = await delRes.json();
   console.log('7. Delete task:', deleted.success ? 'PASSED' : 'FAILED');
 

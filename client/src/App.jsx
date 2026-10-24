@@ -6,6 +6,7 @@ import FilterBar from './components/FilterBar';
 import TaskTable from './components/TaskTable';
 import TaskModal from './components/TaskModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
+import AuthModal from './components/AuthModal';
 import Toast from './components/Toast';
 import {
   getTasks,
@@ -14,8 +15,17 @@ import {
   updateTask,
   deleteTask,
 } from './api/taskService';
+import {
+  getToken,
+  getStoredUser,
+  logout as authLogout,
+  checkAuth,
+} from './api/authService';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -50,13 +60,40 @@ export default function App() {
 
   const [, startTransition] = useTransition();
 
-  // Show toast utility
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
 
-  // Fetch stats and tasks from real MongoDB backend
+  // Verify stored session on mount
+  useEffect(() => {
+    const verifySession = async () => {
+      const user = await checkAuth();
+      setCurrentUser(user);
+    };
+    verifySession();
+
+    // Listen for 401 unauthorized events
+    const handleUnauthorized = () => {
+      setCurrentUser(null);
+      setTasks([]);
+      setStats({ total: 0, completed: 0, pending: 0, inProgress: 0, highPriority: 0, overdue: 0 });
+      showToast('Session expired. Please sign in again.', 'error');
+      setIsAuthModalOpen(true);
+    };
+
+    window.addEventListener('taskflow:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('taskflow:unauthorized', handleUnauthorized);
+  }, []);
+
+  // Fetch stats and tasks from MongoDB Atlas for the authenticated user
   const fetchData = useCallback(async () => {
+    if (!getToken()) {
+      setTasks([]);
+      setStats({ total: 0, completed: 0, pending: 0, inProgress: 0, highPriority: 0, overdue: 0 });
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setError(null);
       const [tasksRes, statsRes] = await Promise.all([
@@ -82,10 +119,31 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentUser]);
+
+  // Handle Logout
+  const handleLogout = () => {
+    authLogout();
+    setCurrentUser(null);
+    setTasks([]);
+    setStats({ total: 0, completed: 0, pending: 0, inProgress: 0, highPriority: 0, overdue: 0 });
+    showToast('Signed out successfully.');
+  };
+
+  // Handle successful login or register
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+    showToast(`Welcome back, ${user.name}!`);
+    fetchData();
+  };
 
   // Handle Create / Edit Task
   const handleSaveTask = async (taskData) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (editingTask) {
@@ -106,11 +164,15 @@ export default function App() {
     }
   };
 
-  // Quick toggle status: if Completed -> Pending, otherwise -> Completed
+  // Quick toggle status
   const handleToggleStatus = async (task) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
     try {
-      // Optimistic update for instant responsiveness
       setTasks((prev) =>
         prev.map((t) => (t._id === task._id ? { ...t, status: newStatus } : t))
       );
@@ -124,7 +186,7 @@ export default function App() {
       fetchData();
     } catch (err) {
       showToast(err.message || 'Error updating status.', 'error');
-      fetchData(); // Rollback
+      fetchData();
     }
   };
 
@@ -152,7 +214,6 @@ export default function App() {
     setSortOption('createdAt_desc');
   };
 
-  // Check if any filter is active
   const isFiltered =
     Boolean(search) ||
     statusFilter !== 'All' ||
@@ -172,20 +233,28 @@ export default function App() {
         stats={stats}
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
+        currentUser={currentUser}
       />
 
       {/* Main Content Area */}
       <div className="main-content">
         <Header
+          currentUser={currentUser}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
           onOpenNewTask={() => {
-            setEditingTask(null);
-            setIsModalOpen(true);
+            if (!currentUser) {
+              setIsAuthModalOpen(true);
+            } else {
+              setEditingTask(null);
+              setIsModalOpen(true);
+            }
           }}
           onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
         />
 
         <main className="content-container">
-          {/* Understated Dashboard Statistics Cards */}
+          {/* Dashboard Statistics Cards */}
           <StatsOverview
             stats={stats}
             currentStatus={statusFilter}
@@ -220,10 +289,16 @@ export default function App() {
             }}
             onDelete={(task) => setDeletingTask(task)}
             isFiltered={isFiltered}
+            isUnauthenticated={!currentUser}
             onResetFilters={handleResetFilters}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
             onOpenNewTask={() => {
-              setEditingTask(null);
-              setIsModalOpen(true);
+              if (!currentUser) {
+                setIsAuthModalOpen(true);
+              } else {
+                setEditingTask(null);
+                setIsModalOpen(true);
+              }
             }}
           />
         </main>
@@ -252,6 +327,13 @@ export default function App() {
         }}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
+      />
+
+      {/* Auth Modal (Sign In / Register) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
       />
 
       {/* Toast Notification */}

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   X,
   Database,
+  User,
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -17,6 +18,7 @@ export default function Sidebar({
   stats = {},
   isOpen,
   onClose,
+  currentUser,
 }) {
   const isFilterActive = (status, priority) => {
     return activeStatus === status && activePriority === priority;
@@ -121,13 +123,61 @@ export default function Sidebar({
         </nav>
 
         <div className="sidebar-footer">
+          {currentUser && (
+            <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--accent-primary)',
+                    color: 'var(--text-inverse)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {currentUser.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-tertiary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {currentUser.email}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <Database size={13} color="#6B6960" />
-            <span style={{ fontSize: 11, fontWeight: 500, color: '#6B6960' }}>Storage</span>
+            <span style={{ fontSize: 11, fontWeight: 500, color: '#6B6960' }}>Database</span>
           </div>
           <div className="backend-pill">
             <span className="backend-indicator" />
-            <span>MongoDB Connected</span>
+            <span>MongoDB Atlas Active</span>
           </div>
         </div>
       </aside>

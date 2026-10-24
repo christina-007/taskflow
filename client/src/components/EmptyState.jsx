@@ -1,7 +1,31 @@
 import React from 'react';
-import { Inbox, Plus, RotateCcw } from 'lucide-react';
+import { Inbox, Plus, RotateCcw, Lock, LogIn } from 'lucide-react';
 
-export default function EmptyState({ isFiltered, onResetFilters, onOpenNewTask }) {
+export default function EmptyState({
+  isFiltered,
+  isUnauthenticated,
+  onResetFilters,
+  onOpenNewTask,
+  onOpenAuth,
+}) {
+  if (isUnauthenticated) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-icon">
+          <Lock size={22} strokeWidth={1.8} />
+        </div>
+        <h3 className="empty-state-title">Sign in to manage your tasks</h3>
+        <p className="empty-state-desc">
+          TaskFlow protects your work with secure, user-isolated storage. Sign in or create an account to start managing your tasks.
+        </p>
+        <button className="btn btn-primary" onClick={onOpenAuth} style={{ marginTop: 4 }}>
+          <LogIn size={14} />
+          <span>Sign In / Create Account</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="empty-state">
       <div className="empty-state-icon">

@@ -35,6 +35,12 @@ const taskSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Task must belong to a user'],
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -44,8 +50,8 @@ const taskSchema = new mongoose.Schema(
 );
 
 // Indexes for high-performance search and filtering
-taskSchema.index({ status: 1, priority: 1 });
-taskSchema.index({ title: 'text' });
+taskSchema.index({ user: 1, status: 1, priority: 1 });
+taskSchema.index({ user: 1, title: 'text' });
 
 const Task = mongoose.model('Task', taskSchema);
 

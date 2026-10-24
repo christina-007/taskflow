@@ -8,8 +8,12 @@ import {
   deleteTask,
 } from '../controllers/taskController.js';
 import { validateTaskInput } from '../middleware/validateTask.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Require authentication for all task operations
+router.use(protect);
 
 // Stats route (must be defined before /:id)
 router.get('/stats', getTaskStats);

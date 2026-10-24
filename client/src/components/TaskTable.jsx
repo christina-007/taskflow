@@ -12,8 +12,10 @@ export default function TaskTable({
   onEdit,
   onDelete,
   isFiltered,
+  isUnauthenticated = false,
   onResetFilters,
   onOpenNewTask,
+  onOpenAuth,
 }) {
   if (isLoading) {
     return (
@@ -51,8 +53,10 @@ export default function TaskTable({
       <div className="task-list-card">
         <EmptyState
           isFiltered={isFiltered}
+          isUnauthenticated={isUnauthenticated}
           onResetFilters={onResetFilters}
           onOpenNewTask={onOpenNewTask}
+          onOpenAuth={onOpenAuth}
         />
       </div>
     );

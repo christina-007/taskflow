@@ -1,7 +1,33 @@
+import { getToken, logout } from './authService';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const getAuthHeaders = () => {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
+const handleResponse = async (res) => {
+  const data = await res.json();
+  if (res.status === 401) {
+    logout();
+    window.dispatchEvent(new Event('taskflow:unauthorized'));
+    throw new Error(data.message || 'Session expired. Please log in.');
+  }
+  if (!res.ok) {
+    const errorMsg = data.errors?.map((e) => e.message).join(' ') || data.message || 'Request failed.';
+    const error = new Error(errorMsg);
+    error.errors = data.errors;
+    throw error;
+  }
+  return data;
+};
+
 /**
- * Fetch tasks with optional filters
+ * Fetch tasks with optional filters for current user
  */
 export const getTasks = async (params = {}) => {
   const query = new URLSearchParams();
@@ -13,27 +39,22 @@ export const getTasks = async (params = {}) => {
   const queryString = query.toString();
   const url = `${API_URL}/tasks${queryString ? `?${queryString}` : ''}`;
 
-  const res = await fetch(url);
-  const data = await res.json();
+  const res = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
 
-  if (!res.ok) {
-    throw new Error(data.message || 'Failed to fetch tasks.');
-  }
-
-  return data;
+  return handleResponse(res);
 };
 
 /**
- * Fetch dashboard statistics
+ * Fetch dashboard statistics for current user
  */
 export const getTaskStats = async () => {
-  const res = await fetch(`${API_URL}/tasks/stats`);
-  const data = await res.json();
+  const res = await fetch(`${API_URL}/tasks/stats`, {
+    headers: getAuthHeaders(),
+  });
 
-  if (!res.ok) {
-    throw new Error(data.message || 'Failed to fetch statistics.');
-  }
-
+  const data = await handleResponse(res);
   return data.data;
 };
 
@@ -43,19 +64,11 @@ export const getTaskStats = async () => {
 export const createTask = async (taskData) => {
   const res = await fetch(`${API_URL}/tasks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(taskData),
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    const errorMsg = data.errors?.map((e) => e.message).join(' ') || data.message || 'Failed to create task.';
-    const error = new Error(errorMsg);
-    error.errors = data.errors;
-    throw error;
-  }
-
+  const data = await handleResponse(res);
   return data.data;
 };
 
@@ -65,19 +78,11 @@ export const createTask = async (taskData) => {
 export const updateTask = async (id, taskData) => {
   const res = await fetch(`${API_URL}/tasks/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(taskData),
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    const errorMsg = data.errors?.map((e) => e.message).join(' ') || data.message || 'Failed to update task.';
-    const error = new Error(errorMsg);
-    error.errors = data.errors;
-    throw error;
-  }
-
+  const data = await handleResponse(res);
   return data.data;
 };
 
@@ -87,15 +92,10 @@ export const updateTask = async (id, taskData) => {
 export const deleteTask = async (id) => {
   const res = await fetch(`${API_URL}/tasks/${id}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.message || 'Failed to delete task.');
-  }
-
-  return data;
+  return handleResponse(res);
 };
 
 /**
@@ -105,8 +105,8 @@ export const checkHealth = async () => {
   try {
     const res = await fetch(`${API_URL}/health`);
     const data = await res.json();
-    return data.status === 'ok';
+    return data;
   } catch {
-    return false;
+    return { status: 'error' };
   }
 };

@@ -1,13 +1,14 @@
 import Task from '../models/Task.js';
 
-// @desc    Get all tasks with optional search, filters, and sorting
+// @desc    Get all tasks for current authenticated user with optional search, filters, and sorting
 // @route   GET /api/tasks
-// @access  Public
+// @access  Private
 export const getTasks = async (req, res, next) => {
   try {
     const { search, status, priority, sort } = req.query;
 
-    const query = {};
+    // Strict user scoping
+    const query = { user: req.user._id };
 
     // Status filter
     if (status && status !== 'All') {
@@ -22,9 +23,13 @@ export const getTasks = async (req, res, next) => {
     // Search query on title and description
     if (search && search.trim() !== '') {
       const cleanSearch = search.trim();
-      query.$or = [
-        { title: { $regex: cleanSearch, $options: 'i' } },
-        { description: { $regex: cleanSearch, $options: 'i' } },
+      query.$and = [
+        {
+          $or: [
+            { title: { $regex: cleanSearch, $options: 'i' } },
+            { description: { $regex: cleanSearch, $options: 'i' } },
+          ],
+        },
       ];
     }
 
@@ -37,7 +42,6 @@ export const getTasks = async (req, res, next) => {
     } else if (sort === 'dueDate_desc') {
       sortOption = { dueDate: -1, createdAt: -1 };
     } else if (sort === 'priority') {
-      // Custom priority sort can be handled via virtual or aggregation if needed, or by title
       sortOption = { priority: 1, createdAt: -1 };
     }
 
@@ -53,12 +57,15 @@ export const getTasks = async (req, res, next) => {
   }
 };
 
-// @desc    Get dashboard metrics & stats
+// @desc    Get dashboard metrics & stats for current authenticated user
 // @route   GET /api/tasks/stats
-// @access  Public
+// @access  Private
 export const getTaskStats = async (req, res, next) => {
   try {
+    const userId = req.user._id;
+
     const [stats] = await Task.aggregate([
+      { $match: { user: userId } },
       {
         $facet: {
           total: [{ $count: 'count' }],
@@ -100,17 +107,20 @@ export const getTaskStats = async (req, res, next) => {
   }
 };
 
-// @desc    Get single task by ID
+// @desc    Get single task by ID (must belong to user)
 // @route   GET /api/tasks/:id
-// @access  Public
+// @access  Private
 export const getTaskById = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!task) {
       return res.status(404).json({
         success: false,
-        message: 'Task not found.',
+        message: 'Task not found or access denied.',
       });
     }
 
@@ -123,9 +133,9 @@ export const getTaskById = async (req, res, next) => {
   }
 };
 
-// @desc    Create a new task
+// @desc    Create a new task owned by current user
 // @route   POST /api/tasks
-// @access  Public
+// @access  Private
 export const createTask = async (req, res, next) => {
   try {
     const { title, description, priority, status, dueDate } = req.body;
@@ -136,6 +146,7 @@ export const createTask = async (req, res, next) => {
       priority: priority || 'Medium',
       status: status || 'Pending',
       dueDate: dueDate || null,
+      user: req.user._id,
     });
 
     res.status(201).json({
@@ -148,19 +159,22 @@ export const createTask = async (req, res, next) => {
   }
 };
 
-// @desc    Update task
+// @desc    Update task (must belong to user)
 // @route   PUT /api/tasks/:id
-// @access  Public
+// @access  Private
 export const updateTask = async (req, res, next) => {
   try {
     const { title, description, priority, status, dueDate } = req.body;
 
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!task) {
       return res.status(404).json({
         success: false,
-        message: 'Task not found.',
+        message: 'Task not found or access denied.',
       });
     }
 
@@ -182,17 +196,20 @@ export const updateTask = async (req, res, next) => {
   }
 };
 
-// @desc    Delete task
+// @desc    Delete task (must belong to user)
 // @route   DELETE /api/tasks/:id
-// @access  Public
+// @access  Private
 export const deleteTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!task) {
       return res.status(404).json({
         success: false,
-        message: 'Task not found.',
+        message: 'Task not found or access denied.',
       });
     }
 
