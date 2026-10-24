@@ -58,27 +58,41 @@ export const getTasks = async (req, res, next) => {
 // @access  Public
 export const getTaskStats = async (req, res, next) => {
   try {
-    const [total, completed, pending, inProgress, highPriority, overdue] = await Promise.all([
-      Task.countDocuments({}),
-      Task.countDocuments({ status: 'Completed' }),
-      Task.countDocuments({ status: 'Pending' }),
-      Task.countDocuments({ status: 'In Progress' }),
-      Task.countDocuments({ priority: 'High', status: { $ne: 'Completed' } }),
-      Task.countDocuments({
-        dueDate: { $ne: null, $lt: new Date() },
-        status: { $ne: 'Completed' },
-      }),
+    const [stats] = await Task.aggregate([
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          completed: [{ $match: { status: 'Completed' } }, { $count: 'count' }],
+          pending: [{ $match: { status: 'Pending' } }, { $count: 'count' }],
+          inProgress: [{ $match: { status: 'In Progress' } }, { $count: 'count' }],
+          highPriority: [
+            { $match: { priority: 'High', status: { $ne: 'Completed' } } },
+            { $count: 'count' },
+          ],
+          overdue: [
+            {
+              $match: {
+                dueDate: { $ne: null, $lt: new Date() },
+                status: { $ne: 'Completed' },
+              },
+            },
+            { $count: 'count' },
+          ],
+        },
+      },
     ]);
+
+    const extract = (arr) => (arr && arr[0] ? arr[0].count : 0);
 
     res.status(200).json({
       success: true,
       data: {
-        total,
-        completed,
-        pending,
-        inProgress,
-        highPriority,
-        overdue,
+        total: extract(stats?.total),
+        completed: extract(stats?.completed),
+        pending: extract(stats?.pending),
+        inProgress: extract(stats?.inProgress),
+        highPriority: extract(stats?.highPriority),
+        overdue: extract(stats?.overdue),
       },
     });
   } catch (error) {
