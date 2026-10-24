@@ -9,18 +9,32 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 const app = express();
 
 // Middleware
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+// CORS configuration supporting production Vercel frontend, local dev, and custom domains
+const clientUrls = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((u) => u.trim().replace(/\/$/, ''));
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl/Postman) or matching origin
-      if (!origin || origin === allowedOrigin || origin.startsWith('http://localhost')) {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        clientUrls.includes('*') ||
+        clientUrls.includes(origin) ||
+        origin.startsWith('http://localhost') ||
+        origin.endsWith('.vercel.app');
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(null, true); // Dev-friendly fallback
+        callback(null, true); // Permissive fallback to prevent deployment lockouts
       }
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 

@@ -1,4 +1,9 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getApiUrl = () => {
+  const url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return url.replace(/\/+$/, '');
+};
+
+const API_URL = getApiUrl();
 
 const TOKEN_KEY = 'taskflow_auth_token';
 const USER_KEY = 'taskflow_auth_user';

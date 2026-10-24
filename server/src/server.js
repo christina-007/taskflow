@@ -12,7 +12,7 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    server = app.listen(PORT, () => {
+    server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`[TaskFlow Server] Running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
       console.log(`[TaskFlow Server] API Health: http://localhost:${PORT}/api/health`);
     });
